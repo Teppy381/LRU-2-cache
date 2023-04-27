@@ -1,3 +1,5 @@
 .vscode
 **/obj
 a.out
+LRU-1.out
+LRU-K.out
