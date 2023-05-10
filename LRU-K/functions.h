@@ -43,5 +43,7 @@ int FindPageInHIST(struct HIST* HIST, int page_num);
 
 int FindVictim(struct Cache* cache_p);
 
+int ReplaceVictim(struct Cache* cache_p, int page, int victim);
 
+int MainAlgorythm(struct Cache* cache_p, int p, int current_time);
 #endif

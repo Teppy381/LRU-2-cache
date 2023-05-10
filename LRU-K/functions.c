@@ -144,6 +144,23 @@ int FindVictim(struct Cache* cache_p)
 }
 
 
+int MainAlgorythm(struct Cache* cache_p, int p, int* current_time)
+{
+    cache_page = FindPageInHIST(cache_p->HIST, p);
+    if (cache_page  > 0)
+    {
+        UpdatePageHist(cache_p->HIST->pages[cache_page], current_time);
+    }
+    else 
+    {
+        victim = FindVictim(cache_p);
+        ReplaceVictim(cache_p, cache_page, victim);
+        UpdatePageHist(cache_p->HIST->pages[cache_page], current_time);
+    }
+}
+//add cache_hit/cache_miss
+//add CreatePageHist?
+
 
 
 
