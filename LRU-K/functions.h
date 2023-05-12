@@ -19,7 +19,7 @@ struct CyclicQueue
 struct HIST
 {
     int size;
-    int next_free;
+    int next_free;     // because of that we know which parts of   struct CyclicQueue* pages   actually store data
     struct CyclicQueue* pages;
 };
 
@@ -41,9 +41,11 @@ int UpdatePageHist(struct CyclicQueue* page, int current_time);
 
 int FindPageInHIST(struct HIST* HIST, int page_num);
 
+int AddPageToHIST(struct Cache* cache_p, int page_num, int current_time);
+
 int FindVictim(struct Cache* cache_p);
 
-int ReplaceVictim(struct Cache* cache_p, int page, int victim);
+int ReplaceVictim(struct Cache* cache_p, int victim, int new_page_num);
 
-int MainAlgorythm(struct Cache* cache_p, int p, int current_time);
+int MainAlgorythm(struct Cache* cache_p, int new_page_num, int current_time);
 #endif

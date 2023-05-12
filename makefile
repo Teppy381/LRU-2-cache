@@ -13,4 +13,4 @@ LRU-K/obj/main.o: LRU-K/main.c
 	g++ -c -o LRU-K/obj/main.o LRU-K/main.c $(CXX_FLAGS)
 
 LRU-K/obj/functions.o: LRU-K/functions.c
-	g++ -c -o LRU-K/obj/functions.o LRU-K/functions.c	$(CXX_FLAGS)
+	g++ -c -o LRU-K/obj/functions.o LRU-K/functions.c $(CXX_FLAGS)
