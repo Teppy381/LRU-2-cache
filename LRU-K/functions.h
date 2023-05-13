@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <climits>
+#include <limits.h>
 
 #define STARTING_PAGE_AMOUNT 10
 

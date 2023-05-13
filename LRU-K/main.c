@@ -2,21 +2,19 @@
 
 int main()
 {
-    struct Cache* Bobs_cache = CacheConstruct(5, 2);
+    size_t cache_size, requests_num, hit_counter = 0;
+    int buffer;
+    scanf("%li%li", &cache_size, &requests_num);
 
-    int hit_counter = 0;
-    for (int i = 0; i < 10; i++)
+    struct Cache* Bobs_cache = CacheConstruct(cache_size, 2);
+
+    for (size_t time = 0; time < requests_num; time++)
     {
-        printf("(%i) ", i);
-        hit_counter += MainAlgorythm(Bobs_cache, 10 - i, i + 1000);
-        PrintCacheData(Bobs_cache);
+        scanf("%i", &buffer);
+        hit_counter += MainAlgorythm(Bobs_cache, buffer, time);
     }
 
-    printf("\n");
-    printf("hit_counter = %i\n", hit_counter);
-    printf("next_free = %i\n", Bobs_cache->HIST->next_free);
-
-
     CacheDestruct(Bobs_cache);
-    printf("Work in progress...\n");
+
+    printf("%li\n", hit_counter);
 }
