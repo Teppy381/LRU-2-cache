@@ -2,25 +2,21 @@
 
 int main()
 {
-    struct Cache Bobs_cache;
-    struct Cache* BC = &Bobs_cache;
-
-    CacheConstruct(BC, 5, 2);
+    struct Cache* Bobs_cache = CacheConstruct(5, 2);
 
     int hit_counter = 0;
-    for (int i = 0; i < 100; i++)
+    for (int i = 0; i < 10; i++)
     {
-        hit_counter += MainAlgorythm(BC, 1, i + 1000);
+        printf("(%i) ", i);
+        hit_counter += MainAlgorythm(Bobs_cache, 10 - i, i + 1000);
+        PrintCacheData(Bobs_cache);
     }
-    // for (int i = 100; i < 200; i++)
-    // {
-    //     hit_counter += MainAlgorythm(&Bobs_cache, 200 - i, i + 1000);
-    // }
 
+    printf("\n");
     printf("hit_counter = %i\n", hit_counter);
-    printf("next_free = %i\n", BC->HIST->next_free);
+    printf("next_free = %i\n", Bobs_cache->HIST->next_free);
 
 
-    CacheDestruct(BC);
+    CacheDestruct(Bobs_cache);
     printf("Work in progress...\n");
 }

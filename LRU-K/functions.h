@@ -31,7 +31,7 @@ struct Cache
     struct HIST* HIST;
 };
 
-int CacheConstruct(struct Cache* cache_p, int cache_size, int K);
+struct Cache* CacheConstruct(int cache_size, int K);
 
 int CacheExpandHIST(struct Cache* cache_p, int new_HIST_size);
 
@@ -47,5 +47,10 @@ int FindVictim(struct Cache* cache_p);
 
 int ReplaceVictim(struct Cache* cache_p, int victim, int new_page_num);
 
+int FindPageInCache(struct Cache* cache_p, int page_num);
+
 int MainAlgorythm(struct Cache* cache_p, int new_page_num, int current_time);
+
+int PrintCacheData(struct Cache* cache_p);
+
 #endif

@@ -1,20 +1,22 @@
 #include "functions.h"
 
 
-int CacheConstruct(struct Cache* cache_p, int cache_size, int K)
+struct Cache* CacheConstruct(int cache_size, int K)
 {
+    struct Cache* cache_p = (struct Cache*) calloc(1, sizeof(struct Cache));
+
     cache_p->K = K;
     cache_p->size = cache_size;
     cache_p->data = (int*) calloc(cache_size, sizeof(int));
     cache_p->HIST = (struct HIST*) calloc(1, sizeof(struct HIST));
 
     cache_p->HIST->size = 0;
-    cache_p->HIST->next_free = 0;
+    cache_p->HIST->next_free = 1;
 
     cache_p->HIST->pages = NULL;
     CacheExpandHIST(cache_p, STARTING_PAGE_AMOUNT);
 
-    return 0;
+    return cache_p;
 }
 
 int CacheExpandHIST(struct Cache* cache_p, int new_HIST_size)
@@ -67,27 +69,35 @@ int CacheDestruct(struct Cache* cache_p)
 
     free(cache_p->HIST);
     free(cache_p->data);
-    cache_p->size = 0;
+
+    free(cache_p);
 
     return 0;
+}
+
+int FindCyclicPosition(struct CyclicQueue* page, int position_relative_to_anchor)
+{
+    int pos = position_relative_to_anchor % page->size;
+
+    if (page->anchor + pos >= page->size)
+    {
+        return page->anchor + pos - page->size;
+    }
+    else if (page->anchor + pos < 0)
+    {
+        return page->anchor + pos + page->size;
+    }
+    else
+    {
+        return page->anchor + pos;
+    }
 }
 
 // page->data[page->anchor - 1] is the least recent time this page was called
 //   page->data[page->anchor]    is the most recent time this page was called
 int UpdatePageHist(struct CyclicQueue* page, int current_time)
 {
-    if (page->anchor > 0)
-    {
-        page->anchor -= 1;
-    }
-    else if (page->anchor == 0)
-    {
-        page->anchor = page->size - 1;
-    }
-    else
-    {
-        return -1; // error
-    }
+    page->anchor = FindCyclicPosition(page, -1);
     page->data[page->anchor] = current_time;
 
     return 0;
@@ -113,47 +123,59 @@ int AddPageToHIST(struct Cache* cache_p, int page_num, int current_time)
     }
 
     cache_p->HIST->pages[cache_p->HIST->next_free].page_num = page_num;
-    cache_p->HIST->next_free += 1;
 
     UpdatePageHist(&(cache_p->HIST->pages[cache_p->HIST->next_free]), current_time);
+    cache_p->HIST->next_free += 1;
 
-    printf("Page %i added to HIST\n", page_num);
-
+    // printf("Page %i added to HIST\n", page_num);
     return 0;
 }
 
 
 int FindVictim(struct Cache* cache_p)
 {
-    int min_time = 0;
     int victim = 0;
 
     for (int i = 0; i < cache_p->size; i++)
     {
         int page_position = FindPageInHIST(cache_p->HIST, cache_p->data[i]);
-
         if (page_position < 0 || page_position >= cache_p->HIST->size)
         {
-            return -1;      // error: no info about this page in HIST
+            // printf("error: no info about page (%i) in HIST\n", cache_p->data[i]);
+            return i;
+        }
+
+        int victim_position = FindPageInHIST(cache_p->HIST, cache_p->data[victim]);
+        if (victim_position < 0 || victim_position >= cache_p->HIST->size)
+        {
+            // this means that we found some garbage in cache ==> we should replace it
+            return victim;
         }
 
         struct CyclicQueue page = cache_p->HIST->pages[page_position];
-        int LRU_time = 0;
+        struct CyclicQueue victim_page = cache_p->HIST->pages[victim_position];
 
-        if (page.anchor > 0)
+        for (int k = 1; k <= page.size && k <= victim_page.size; k++)
         {
-            LRU_time = page.data[page.anchor - 1];
-        }
-        else if (page.anchor == 0)
-        {
-            LRU_time = page.data[page.size - 1];
-        }
-        else return -1;                 // error: anchor < 0
+            int LRU_time = page.data[FindCyclicPosition(&page, -k)];
+            int min_time = victim_page.data[FindCyclicPosition(&victim_page, -k)];
 
-        if (LRU_time < min_time)      // because global time only increases
-        {
-            min_time = LRU_time;
-            victim = i;
+            // printf("#%i# (%i) (%i) - %i\n", k, LRU_time, min_time, victim);
+
+            if (LRU_time == min_time)
+            {
+                // printf("continue\n");
+                continue;
+            }
+            else if (LRU_time < min_time)   // because current time only increases
+            {
+                victim = i;
+                break;
+            }
+            else // (LRU_time > min_time)
+            {
+                break;
+            }
         }
     }
 
@@ -171,16 +193,29 @@ int ReplaceVictim(struct Cache* cache_p, int victim, int new_page_num)
     return 0;
 }
 
+int FindPageInCache(struct Cache* cache_p, int page_num)
+{
+    for (int i = 0; i < cache_p->size; i++)
+    {
+        if (cache_p->data[i] == page_num)
+        {
+            return i;   // cache hit
+        }
+    }
+    return -1;      // cache miss
+}
+
 int MainAlgorythm(struct Cache* cache_p, int new_page_num, int current_time)
 {
-    int page_position = FindPageInHIST(cache_p->HIST, new_page_num);
-    if (page_position >= 0)
+    if (FindPageInCache(cache_p, new_page_num) >= 0)
     {
+        int page_position = FindPageInHIST(cache_p->HIST, new_page_num);
         UpdatePageHist(&(cache_p->HIST->pages[page_position]), current_time);
         return 1;   // cache_hit
     }
 
     int victim = FindVictim(cache_p);
+    // printf("victim = %i\n", victim);
     ReplaceVictim(cache_p, victim, new_page_num);
     AddPageToHIST(cache_p, new_page_num, current_time);
 
@@ -189,6 +224,16 @@ int MainAlgorythm(struct Cache* cache_p, int new_page_num, int current_time)
 
 //add cache_hit/cache_miss
 //add CreatePageHist? - done (AddPageToHIST)
+
+int PrintCacheData(struct Cache* cache_p)
+{
+    for (int i = 0; i < cache_p->size; i++)
+    {
+        printf("%i ", cache_p->data[i]);
+    }
+    printf("\n");
+    return 0;
+}
 
 
 
