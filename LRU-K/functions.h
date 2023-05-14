@@ -11,46 +11,48 @@
 struct CyclicQueue
 {
     int  page_num;
-    int  anchor;
-    int  size;
-    int* data;
+    size_t  anchor;
+    size_t  size;
+    unsigned long* data;  // last K times when page_num was called
 };
 
 struct HIST
 {
-    int size;
-    int next_free;     // because of that we know which parts of   struct CyclicQueue* pages   actually store data
+    size_t size;
+    size_t next_free;     // because of that we know which parts of   struct CyclicQueue* pages   actually store data
     struct CyclicQueue* pages;
 };
 
 struct Cache
 {
-    int  K;            // - it's LRU-K cache
-    int  size;
+    size_t  K;            // - it's LRU-K cache
+    size_t  size;
     int* data;
     struct HIST* HIST;
 };
 
-struct Cache* CacheConstruct(int cache_size, int K);
+struct Cache* CacheConstruct(size_t cache_size, size_t K);
 
-int CacheExpandHIST(struct Cache* cache_p, int new_HIST_size);
+int CacheExpandHIST(struct Cache* cache_p, size_t new_HIST_size);
 
 int CacheDestruct(struct Cache* cache_p);
 
-int UpdatePageHist(struct CyclicQueue* page, int current_time);
+size_t FindCyclicPosition(struct CyclicQueue* page, int position_relative_to_anchor);
 
-int FindPageInHIST(struct HIST* HIST, int page_num);
+int UpdatePageHist(struct CyclicQueue* page, unsigned long current_time);
 
-int AddPageToHIST(struct Cache* cache_p, int page_num, int current_time);
+size_t FindPageInHIST(struct HIST* HIST, int page_num);
 
-int FindVictim(struct Cache* cache_p);
+int AddPageToHIST(struct Cache* cache_p, int page_num, unsigned long current_time);
 
-int ReplaceVictim(struct Cache* cache_p, int victim, int new_page_num);
+size_t FindVictim(struct Cache* cache_p);
 
-int FindPageInCache(struct Cache* cache_p, int page_num);
+int ReplaceVictim(struct Cache* cache_p, size_t victim, int new_page_num);
 
-int MainAlgorythm(struct Cache* cache_p, int new_page_num, int current_time);
+size_t FindPageInCache(struct Cache* cache_p, int page_num);
 
-int PrintCacheData(struct Cache* cache_p);
+int CacheCall(struct Cache* cache_p, int new_page_num, unsigned long current_time);
+
+int PrintCacheData(struct Cache* cache_p, unsigned long current_time, size_t highlight_element, const char* color);
 
 #endif
