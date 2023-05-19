@@ -31,6 +31,7 @@ struct ListNode
 struct List
 {
     size_t size;
+    size_t capacity;
     size_t next_free;
     size_t last_free;
     size_t head;
@@ -50,6 +51,7 @@ struct Cache
 
 
 
+// ========================================= Cache ===================================================
 struct Cache* CacheConstruct(size_t cache_size, size_t K)
 {
     struct Cache* cache_p = (struct Cache*) calloc(1, sizeof(struct Cache));
@@ -228,40 +230,167 @@ int PrintCacheData(const struct Cache* cache_p, unsigned long current_time, size
     printf("\n");
     return 0;
 }
+
+int StandartCacheTrial()
+{
+    size_t cache_size, requests_num, hit_counter = 0;
+    int buffer;
+    scanf("%li%li", &cache_size, &requests_num);
+
+    struct Cache* Bobs_cache = CacheConstruct(cache_size, 2);
+
+    for (unsigned long time = 1; time < requests_num + 1; time++)
+    {
+        scanf("%i", &buffer);
+        hit_counter += CacheCall(Bobs_cache, buffer, time);
+    }
+    CacheDestruct(Bobs_cache);
+    printf("%li\n", hit_counter);
+    return 0;
+}
 // ===================================================================================================
 
 
 
 // ========================================== List ===================================================
-int ExpandList(struct List* list_p, size_t new_list_size)
+int ExpandList(struct List* list_p, size_t new_list_capacity)
 {
     assert(list_p != NULL);
-    assert(new_list_size > list_p->size);
+    assert(new_list_capacity > list_p->capacity);
 
     if (list_p->data == NULL)
     {
-        list_p->data = (struct ListNode*) calloc(new_list_size, sizeof(struct ListNode));
+        list_p->data = (struct ListNode*) calloc(new_list_capacity, sizeof(struct ListNode));
     }
     else
     {
-        list_p->data = (struct ListNode*) realloc(list_p->data, new_list_size * sizeof(struct ListNode));
+        list_p->data = (struct ListNode*) realloc(list_p->data, new_list_capacity * sizeof(struct ListNode));
     }
     MEM_CHECK(list_p->data);
 
     if (list_p->data[list_p->last_free].data_p == NULL)
     {
-        list_p->data[list_p->size].prev = list_p->last_free;
-        list_p->data[list_p->last_free].next = list_p->size;
+        list_p->data[list_p->last_free].next = list_p->capacity;
     }
-    for (size_t i = list_p->size + 1; i < new_list_size - 1; i++)
+    for (size_t i = list_p->capacity; i < new_list_capacity - 1; i++)
     {
         list_p->data[i].prev = i - 1;
         list_p->data[i].next = i + 1;
+        list_p->data[i].data_p = NULL;
     }
-    list_p->data[new_list_size - 1].prev = new_list_size - 2;
+    if (list_p->data[list_p->last_free].data_p == NULL)
+    {
+        list_p->data[list_p->capacity].prev = list_p->last_free;
+    }
+    list_p->data[new_list_capacity - 1].prev = new_list_capacity - 2;
+    list_p->data[new_list_capacity - 1].next = 0;
+    list_p->data[new_list_capacity - 1].data_p = NULL;
 
-    list_p->last_free = new_list_size - 1;
-    list_p->size = new_list_size;
+    list_p->last_free = new_list_capacity - 1;
+    list_p->capacity = new_list_capacity;
+    return 0;
+}
+
+size_t FindPosition(const struct List* list_p, CacheType* data_p)
+{
+    assert(list_p != NULL);
+
+    size_t node_adr = list_p->head;
+    while(list_p->data[node_adr].data_p != NULL)    // might be loop here
+    {
+        if (list_p->data[node_adr].data_p == data_p)
+        {
+            return node_adr;
+        }
+        node_adr = list_p->data[node_adr].next;
+    }
+    return list_p->capacity;
+}
+
+int AddNode(struct List* list_p, CacheType* data_p)
+{
+    assert(list_p != NULL);
+
+    // printf("AddNode called with data_p = %p\n", data_p);
+
+    if (list_p->size == list_p->capacity - 1)
+    {
+        ExpandList(list_p, list_p->capacity * 2);
+    }
+
+    size_t free_adress = list_p->next_free;
+    size_t next_adress = list_p->data[free_adress].next;
+    size_t prev_adress = list_p->tail;
+
+    list_p->data[free_adress].data_p = data_p;
+    list_p->data[free_adress].next = 0;
+
+    if (free_adress != prev_adress)
+    {
+        list_p->data[free_adress].prev = prev_adress;
+        list_p->data[prev_adress].next = free_adress;
+    }
+    list_p->tail = free_adress;
+    list_p->next_free = next_adress;
+    list_p->size += 1;
+    return 0;
+}
+
+int DeleteNode(struct List* list_p, size_t node_position)
+{
+    assert(list_p != NULL);
+
+    size_t next_adress = list_p->data[node_position].next;
+    size_t prev_adress = list_p->data[node_position].prev;
+
+    list_p->data[prev_adress].next = next_adress;
+    list_p->data[next_adress].prev = prev_adress;
+
+    list_p->data[node_position].data_p = NULL;
+    if (node_position == list_p->head) { list_p->head = next_adress; }
+    if (node_position == list_p->tail) { list_p->tail = prev_adress; }
+
+    list_p->data[node_position].next = list_p->next_free;
+    list_p->data[list_p->next_free].prev = node_position;
+    list_p->next_free = node_position;
+    list_p->size -= 1;
+    return 0;
+}
+
+int PrintList(const struct List* list_p)
+{
+    assert(list_p != NULL);
+
+    printf("Head: %zu  Tail: %zu\nNextFree: %zu  LastFree: %zu\n", list_p->head, list_p->tail, list_p->next_free, list_p->last_free);
+    for (size_t i = 0; i < list_p->capacity; i++)
+    {
+        printf("(%zu) %zu %zu %p\n", i, list_p->data[i].prev, list_p->data[i].next, list_p->data[i].data_p);
+    }
+    return 0;
+}
+
+int PrintTable(const struct Cache* cache_p)
+{
+    assert(cache_p != NULL);
+
+    for (size_t i = 0; i < cache_p->table_size; i++)
+    {
+        printf("<<%zu>>\n", i);
+        PrintList(&(cache_p->table[i]));
+        printf("\n");
+    }
+
+    return 0;
+}
+
+int TEST(struct Cache* cache_p)
+{
+    AddNode(&(cache_p->table[7]), (CacheType*) 3);
+    AddNode(&(cache_p->table[7]), (CacheType*) 235);
+    AddNode(&(cache_p->table[7]), (CacheType*) 34523);
+    AddNode(&(cache_p->table[6]), (CacheType*) 134523);
+    AddNode(&(cache_p->table[7]), (CacheType*) 134);
+    DeleteNode(&(cache_p->table[7]), 2);
     return 0;
 }
 // ===================================================================================================
