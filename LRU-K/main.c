@@ -5,12 +5,7 @@
 
 int main()
 {
-    StandartCacheTrial();
+    // StandartCacheTrial();
 
-//     struct Cache* Bobs_cache = CacheConstruct(5, 2);
-//
-//     TEST(Bobs_cache);
-//
-//     PrintTable(Bobs_cache);
-//     CacheDestruct(Bobs_cache);
+    FileCacheTrial("TESTS/test2.txt");
 }

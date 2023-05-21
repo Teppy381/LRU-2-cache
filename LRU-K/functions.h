@@ -4,12 +4,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <string.h>
 #include <assert.h>
 
 
-#define STARTING_PAGE_AMOUNT 8
-#define STARTING_TABLE_SIZE  8
-#define STARTING_LIST_SIZE   4
+#define STARTING_HIST_SIZE  1000
+#define STARTING_TABLE_SIZE 8
+#define STARTING_LIST_SIZE  4
 
 #define MEM_CHECK(x)                                                                        \
 do {                                                                                        \
@@ -19,6 +20,26 @@ do {                                                                            
         exit(-1);                                                                           \
     }                                                                                       \
 } while (0)                                                                                 \
+
+// #define DEBUG
+#ifdef DEBUG
+    #define ANNOUNCE_CALL()                                                                 \
+    do {                                                                                    \
+        printf("<%s>\n", __PRETTY_FUNCTION__);                                              \
+    } while (0)                                                                             \
+
+    #define DEBUG_PRINT_R(x) printf("\x1b[1m\x1b[31m%s\x1B[0m\n", x)
+    #define DEBUG_PRINT_G(x) printf("\x1b[1m\x1b[32m%s\x1B[0m\n", x)
+    #define DEBUG_PRINT_Y(x) printf("\x1b[1m\x1b[33m%s\x1B[0m\n", x)
+    #define DEBUG_PRINT_B(x) printf("\x1b[1m\x1b[34m%s\x1B[0m\n", x)
+#else
+    #define ANNOUNCE_CALL()  {}
+    #define DEBUG_PRINT_R(x) {}
+    #define DEBUG_PRINT_G(x) {}
+    #define DEBUG_PRINT_Y(x) {}
+    #define DEBUG_PRINT_B(x) {}
+#endif
+
 
 
 typedef int CacheType;
@@ -53,10 +74,14 @@ int PrintCacheData(const struct Cache* cache_p, unsigned long current_time, size
 
 int StandartCacheTrial();
 
+int FileCacheTrial(const char* file_name);
+
 
 int ExpandList(struct List* list_p, size_t new_list_capacity);
 
 size_t FindPosition(const struct List* list_p, CacheType page_num);
+
+size_t LoopSearch(const struct List* list_p);
 
 int AddNode(struct List* list_p, struct CacheCell* data_p);
 
