@@ -2,7 +2,7 @@
 
 struct CyclicQueue
 {
-    CacheType  page_num;
+    CacheType page_num;
     size_t  anchor;
     size_t  size;
     unsigned long* data;  // last K times when page_num was called
@@ -10,10 +10,26 @@ struct CyclicQueue
 
 struct HIST
 {
+    size_t K;             // - this is LRU-K cache, so we store last K times when each page was called
     size_t size;
     size_t next_free;     // because of that we know which parts of   struct CyclicQueue* pages   actually store data
     struct CyclicQueue* pages;
 };
+
+// struct HIST
+// {
+//     struct TreeNode* first_node;
+//     // что то ещё тут
+// };
+//
+// struct TreeNode
+// {
+//     struct TreeNode* parent;
+//     struct TreeNode* left;
+//     struct TreeNode* right;
+//     int color;
+//     struct CyclicQueue page_hist;
+// };
 
 struct CacheCell
 {
@@ -25,7 +41,7 @@ struct ListNode
 {
     size_t next;
     size_t prev;
-    CacheType* data_p;
+    struct CacheCell* data_p;
 };
 
 struct List
@@ -41,7 +57,6 @@ struct List
 
 struct Cache
 {
-    size_t  K;            // - this is LRU-K cache
     size_t table_size;
     struct List* table;
     size_t  cache_size;
@@ -57,7 +72,6 @@ struct Cache* CacheConstruct(size_t cache_size, size_t K)
     struct Cache* cache_p = (struct Cache*) calloc(1, sizeof(struct Cache));
     MEM_CHECK(cache_p);
 
-    cache_p->K = K;
     cache_p->cache_size = cache_size;
     cache_p->data = (struct CacheCell*) calloc(cache_size, sizeof(struct CacheCell));
     MEM_CHECK(cache_p->data);
@@ -72,11 +86,12 @@ struct Cache* CacheConstruct(size_t cache_size, size_t K)
 
     cache_p->HIST = (struct HIST*) calloc(1, sizeof(struct HIST));
     MEM_CHECK(cache_p->HIST);
+    cache_p->HIST->K = K;
     cache_p->HIST->size = 0;
     cache_p->HIST->next_free = 1;
 
     cache_p->HIST->pages = NULL;
-    ExpandHIST(cache_p, STARTING_PAGE_AMOUNT);
+    ExpandHIST(cache_p->HIST, STARTING_PAGE_AMOUNT);
 
     return cache_p;
 }
@@ -111,27 +126,40 @@ size_t FindVictim(const struct Cache* cache_p)
 
     for (size_t i = 0; i < cache_p->cache_size; i++)
     {
-        size_t page_position = FindPageInHIST(cache_p->HIST, cache_p->data[i].page_num);
-        if (page_position >= cache_p->HIST->next_free)
+        struct CyclicQueue* page_hist;
+        struct CyclicQueue* victim_hist;
+
+        if (cache_p->data[i].page_hist != NULL)
         {
-            // printf("error: no info about page (" CachePrintType ") in HIST\n", cache_p->data[i].page_num);
-            return i;
+            page_hist = cache_p->data[i].page_hist;
+        }
+        else
+        {
+            page_hist = FindPageInHIST(cache_p->HIST, cache_p->data[i].page_num);
+            if (page_hist == NULL)
+            {
+                return i;   // cannot find any info about this page ==> we should replace it
+            }
         }
 
-        size_t victim_position = FindPageInHIST(cache_p->HIST, cache_p->data[victim].page_num);
-        if (victim_position >= cache_p->HIST->next_free)
+        if (cache_p->data[victim].page_hist != NULL)
         {
-            // this means that we found some garbage in cache ==> we should replace it
-            return victim;
+            victim_hist = cache_p->data[victim].page_hist;
+        }
+        else
+        {
+            victim_hist = FindPageInHIST(cache_p->HIST, cache_p->data[victim].page_num);
+            if (victim_hist == NULL)
+            {
+                return victim;   // cannot find any info about this page ==> we should replace it
+            }
         }
 
-        struct CyclicQueue page = cache_p->HIST->pages[page_position];
-        struct CyclicQueue victim_page = cache_p->HIST->pages[victim_position];
 
-        for (size_t k = 1; k <= page.size && k <= victim_page.size; k++)
+        for (size_t k = 1; k <= page_hist->size && k <= victim_hist->size; k++)
         {
-            unsigned long LRU_time = page.data[FindCyclicPosition(&page, -k)];
-            unsigned long min_time = victim_page.data[FindCyclicPosition(&victim_page, -k)];
+            unsigned long LRU_time = page_hist->data[FindCyclicPosition(page_hist, -k)];
+            unsigned long min_time = victim_hist->data[FindCyclicPosition(victim_hist, -k)];
 
             // printf("#%zu# (%lu) (%lu) - %zu\n", k, LRU_time, min_time, victim);
 
@@ -155,11 +183,27 @@ size_t FindVictim(const struct Cache* cache_p)
     return victim;
 }
 
-int ReplaceVictim(struct Cache* cache_p, size_t victim, CacheType new_page_num)
+size_t Hash(CacheType page_num)
+{
+    return (unsigned) page_num;
+}
+
+
+int ReplaceVictim(struct Cache* cache_p, size_t victim, CacheType new_page_num, struct CyclicQueue* new_page_hist)
 {
     assert(cache_p != NULL);
 
+    size_t victim_hash = Hash(cache_p->data[victim].page_num) % cache_p->table_size;
+    size_t pos = FindPosition(&(cache_p->table[victim_hash]), cache_p->data[victim].page_num);
+    if (pos < cache_p->table[victim_hash].capacity)
+    {
+        DeleteNode(&(cache_p->table[victim_hash]), pos);
+    }
+    size_t new_page_hash = Hash(new_page_num) % cache_p->table_size;
+    AddNode(&(cache_p->table[new_page_hash]), &(cache_p->data[victim]));
+
     cache_p->data[victim].page_num = new_page_num;
+    cache_p->data[victim].page_hist = new_page_hist;
     return 0;
 }
 
@@ -167,12 +211,12 @@ size_t FindPageInCache(const struct Cache* cache_p, CacheType page_num)
 {
     assert(cache_p != NULL);
 
-    for (size_t i = 0; i < cache_p->cache_size; i++)
+    size_t page_hash = Hash(page_num) % cache_p->table_size;
+    size_t pos = FindPosition(&(cache_p->table[page_hash]), page_num);
+
+    if (pos < cache_p->table[page_hash].capacity)
     {
-        if (cache_p->data[i].page_num == page_num)
-        {
-            return i;   // cache hit
-        }
+        return (cache_p->table[page_hash].data[pos].data_p - cache_p->data);
     }
     return cache_p->cache_size;      // cache miss
 }
@@ -182,15 +226,18 @@ int CacheCall(struct Cache* cache_p, CacheType new_page_num, unsigned long curre
 {
     assert(cache_p != NULL);
 
+    struct CyclicQueue* page_hist;
+
     size_t cache_position = FindPageInCache(cache_p, new_page_num);
     if (cache_position < cache_p->cache_size) // cache hit
     {
-        size_t page_position = FindPageInHIST(cache_p->HIST, new_page_num);
-        if (page_position >= cache_p->HIST->next_free)
+        page_hist = cache_p->data[cache_position].page_hist;
+        if (page_hist == NULL)
         {
+            fprintf(stderr, "Null pointer to HIST of page " CachePrintType "\n", cache_p->data[cache_position].page_num);
             return 1;
         }
-        UpdatePageHist(&(cache_p->HIST->pages[page_position]), current_time);
+        UpdatePageInHist(page_hist, current_time);
 
         #ifdef DEMO_MODE
         PrintCacheData(cache_p, current_time, cache_position, "\x1b[1m\x1B[32m");
@@ -199,10 +246,15 @@ int CacheCall(struct Cache* cache_p, CacheType new_page_num, unsigned long curre
         return 1;   // cache_hit
     }
 
+    page_hist = FindPageInHIST(cache_p->HIST, new_page_num);
+    if (page_hist == NULL)
+    {
+        page_hist = AddPageToHIST(cache_p->HIST, new_page_num);
+    }
+    UpdatePageInHist(page_hist, current_time);
+
     size_t victim = FindVictim(cache_p);
-    // printf("victim = %zu\n", victim);
-    ReplaceVictim(cache_p, victim, new_page_num);
-    AddPageToHIST(cache_p, new_page_num, current_time);
+    ReplaceVictim(cache_p, victim, new_page_num, page_hist);
 
     #ifdef DEMO_MODE
     PrintCacheData(cache_p, current_time, victim, "\x1b[1m\x1B[35m");
@@ -244,6 +296,9 @@ int StandartCacheTrial()
         scanf("%i", &buffer);
         hit_counter += CacheCall(Bobs_cache, buffer, time);
     }
+
+    // PrintHIST(Bobs_cache->HIST);
+
     CacheDestruct(Bobs_cache);
     printf("%li\n", hit_counter);
     return 0;
@@ -291,14 +346,14 @@ int ExpandList(struct List* list_p, size_t new_list_capacity)
     return 0;
 }
 
-size_t FindPosition(const struct List* list_p, CacheType* data_p)
+size_t FindPosition(const struct List* list_p, CacheType page_num)
 {
     assert(list_p != NULL);
 
     size_t node_adr = list_p->head;
     while(list_p->data[node_adr].data_p != NULL)    // might be loop here
     {
-        if (list_p->data[node_adr].data_p == data_p)
+        if (list_p->data[node_adr].data_p->page_num == page_num)
         {
             return node_adr;
         }
@@ -307,11 +362,9 @@ size_t FindPosition(const struct List* list_p, CacheType* data_p)
     return list_p->capacity;
 }
 
-int AddNode(struct List* list_p, CacheType* data_p)
+int AddNode(struct List* list_p, struct CacheCell* data_p)
 {
     assert(list_p != NULL);
-
-    // printf("AddNode called with data_p = %p\n", data_p);
 
     if (list_p->size == list_p->capacity - 1)
     {
@@ -385,11 +438,11 @@ int PrintTable(const struct Cache* cache_p)
 
 int TEST(struct Cache* cache_p)
 {
-    AddNode(&(cache_p->table[7]), (CacheType*) 3);
-    AddNode(&(cache_p->table[7]), (CacheType*) 235);
-    AddNode(&(cache_p->table[7]), (CacheType*) 34523);
-    AddNode(&(cache_p->table[6]), (CacheType*) 134523);
-    AddNode(&(cache_p->table[7]), (CacheType*) 134);
+    AddNode(&(cache_p->table[7]), (struct CacheCell*) 3);
+    AddNode(&(cache_p->table[7]), (struct CacheCell*) 235);
+    AddNode(&(cache_p->table[7]), (struct CacheCell*) 34523);
+    AddNode(&(cache_p->table[6]), (struct CacheCell*) 134523);
+    AddNode(&(cache_p->table[7]), (struct CacheCell*) 134);
     DeleteNode(&(cache_p->table[7]), 2);
     return 0;
 }
@@ -398,37 +451,37 @@ int TEST(struct Cache* cache_p)
 
 
 // ========================================== HIST ===================================================
-int ExpandHIST(struct Cache* cache_p, size_t new_HIST_size)
+int ExpandHIST(struct HIST* HIST, size_t new_HIST_size)
 {
-    assert(cache_p != NULL);
-    assert(new_HIST_size > cache_p->HIST->size);
+    assert(HIST != NULL);
+    assert(new_HIST_size > HIST->size);
 
-    if (cache_p->HIST->pages == NULL)
+    if (HIST->pages == NULL)
     {
-        cache_p->HIST->pages = (struct CyclicQueue*) calloc(new_HIST_size, sizeof(struct CyclicQueue));
+        HIST->pages = (struct CyclicQueue*) calloc(new_HIST_size, sizeof(struct CyclicQueue));
     }
     else
     {
-        cache_p->HIST->pages = (struct CyclicQueue*) realloc(cache_p->HIST->pages, new_HIST_size * sizeof(struct CyclicQueue));
+        HIST->pages = (struct CyclicQueue*) realloc(HIST->pages, new_HIST_size * sizeof(struct CyclicQueue));
     }
-    MEM_CHECK(cache_p->HIST->pages);
+    MEM_CHECK(HIST->pages);
 
-    for (size_t i = cache_p->HIST->size; i < new_HIST_size; i++)
+    for (size_t i = HIST->size; i < new_HIST_size; i++)
     {
-        cache_p->HIST->pages[i].data = (unsigned long*) calloc(cache_p->K, sizeof(unsigned long));
-        MEM_CHECK(cache_p->HIST->pages[i].data);
-        cache_p->HIST->pages[i].size = cache_p->K;
-        cache_p->HIST->pages[i].anchor = 0;
-        cache_p->HIST->pages[i].page_num = 0;
+        HIST->pages[i].data = (unsigned long*) calloc(HIST->K, sizeof(unsigned long));
+        MEM_CHECK(HIST->pages[i].data);
+        HIST->pages[i].size = HIST->K;
+        HIST->pages[i].anchor = 0;
+        HIST->pages[i].page_num = 0;
     }
 
-    cache_p->HIST->size = new_HIST_size;
+    HIST->size = new_HIST_size;
     return 0;
 }
 
 // page->data[page->anchor - 1] is the least recent time this page was called
 //   page->data[page->anchor]    is the most recent time this page was called
-int UpdatePageHist(struct CyclicQueue* page, unsigned long current_time)
+int UpdatePageInHist(struct CyclicQueue* page, unsigned long current_time)
 {
     assert(page != NULL);
 
@@ -438,35 +491,47 @@ int UpdatePageHist(struct CyclicQueue* page, unsigned long current_time)
     return 0;
 }
 
-size_t FindPageInHIST(const struct HIST* HIST, CacheType page_num)
+struct CyclicQueue* FindPageInHIST(const struct HIST* HIST, CacheType page_num)
 {
     assert(HIST != NULL);
 
+    // printf("FindPageInHIST\n");
     for (size_t i = 0; i < HIST->next_free; i++)
     {
         if (HIST->pages[i].page_num == page_num)
         {
-            return i;
+            return &(HIST->pages[i]);
         }
     }
-    return HIST->next_free;
+    return NULL;
 }
 
-int AddPageToHIST(struct Cache* cache_p, CacheType page_num, unsigned long current_time)
+struct CyclicQueue* AddPageToHIST(struct HIST* HIST, CacheType page_num)
 {
-    assert(cache_p != NULL);
+    assert(HIST != NULL);
 
-    if (cache_p->HIST->next_free >= cache_p->HIST->size)
+    if (HIST->next_free >= HIST->size)
     {
-        ExpandHIST(cache_p, 2 * cache_p->HIST->size);
+        ExpandHIST(HIST, 2 * HIST->size);
     }
 
-    cache_p->HIST->pages[cache_p->HIST->next_free].page_num = page_num;
+    HIST->pages[HIST->next_free].page_num = page_num;
+    HIST->next_free += 1;
 
-    UpdatePageHist(&(cache_p->HIST->pages[cache_p->HIST->next_free]), current_time);
-    cache_p->HIST->next_free += 1;
+    return &(HIST->pages[HIST->next_free - 1]);
+}
 
-    // printf("Page " CachePrintType " added to HIST\n", page_num);
+int PrintHIST(const struct HIST* HIST)
+{
+    for (size_t i = 0; i < HIST->next_free; i++)
+    {
+        printf("\n(" CachePrintType ")\n", HIST->pages[i].page_num);
+        for (size_t j = 0; j < HIST->pages[i].size; j++)
+        {
+            printf("%lu ", HIST->pages[i].data[j]);
+        }
+        printf("\n");
+    }
     return 0;
 }
 // ===================================================================================================

@@ -43,7 +43,7 @@ int CacheDestruct(struct Cache* cache_p);
 
 size_t FindVictim(const struct Cache* cache_p);
 
-int ReplaceVictim(struct Cache* cache_p, size_t victim, int new_page_num);
+int ReplaceVictim(struct Cache* cache_p, size_t victim, int new_page_num, struct CyclicQueue* new_page_hist);
 
 size_t FindPageInCache(const struct Cache* cache_p, int page_num);
 
@@ -56,9 +56,9 @@ int StandartCacheTrial();
 
 int ExpandList(struct List* list_p, size_t new_list_capacity);
 
-size_t FindPosition(const struct List* list_p, CacheType* data_p);
+size_t FindPosition(const struct List* list_p, CacheType page_num);
 
-int AddNode(struct List* list_p, CacheType* data_p);
+int AddNode(struct List* list_p, struct CacheCell* data_p);
 
 int DeleteNode(struct List* list_p, size_t node_position);
 
@@ -69,13 +69,15 @@ int PrintTable(const struct Cache* cache_p);
 int TEST(struct Cache* cache_p);
 
 
-int ExpandHIST(struct Cache* cache_p, size_t new_HIST_size);
+int ExpandHIST(struct HIST* HIST, size_t new_HIST_size);
 
-int UpdatePageHist(struct CyclicQueue* page, unsigned long current_time);
+int UpdatePageInHist(struct CyclicQueue* page, unsigned long current_time);
 
-size_t FindPageInHIST(const struct HIST* HIST, int page_num);
+struct CyclicQueue* FindPageInHIST(const struct HIST* HIST, CacheType page_num);
 
-int AddPageToHIST(struct Cache* cache_p, int page_num, unsigned long current_time);
+struct CyclicQueue* AddPageToHIST(struct HIST* HIST, int page_num);
+
+int PrintHIST(const struct HIST* HIST);
 
 
 size_t FindCyclicPosition(const struct CyclicQueue* page, int position_relative_to_anchor);
