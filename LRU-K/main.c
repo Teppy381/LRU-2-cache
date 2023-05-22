@@ -3,9 +3,15 @@
 
 // for demonstration mode use   make LRU-K-DEMO
 
-int main()
+int main(int argc, char* argv[])
 {
-    // StandartCacheTrial();
-
-    FileCacheTrial("TESTS/test2.txt");
+    if (argc > 1)
+    {
+        FileCacheTrial(argv[1]);
+    }
+    else
+    {
+        StandartCacheTrial();
+    }
 }
+

@@ -402,14 +402,14 @@ int ExpandList(struct List* list_p, size_t new_list_capacity)
     }
     for (size_t i = list_p->capacity; i < new_list_capacity; i++)
     {
-        list_p->data[i].prev = i - 1;
+        list_p->data[i].prev = LIST_EMPTY_UNDEX;
         list_p->data[i].next = i + 1;
         list_p->data[i].data_p = NULL;
     }
-    if (list_p->data[list_p->last_free].data_p == NULL)
-    {
-        list_p->data[list_p->capacity].prev = list_p->last_free;
-    }
+    // if (list_p->data[list_p->last_free].data_p == NULL)
+    // {
+    //     list_p->data[list_p->capacity].prev = list_p->last_free;
+    // }
 
     list_p->last_free = new_list_capacity - 1;
     list_p->capacity = new_list_capacity;
@@ -422,13 +422,13 @@ size_t FindPosition(const struct List* list_p, CacheType page_num)
 
     assert(list_p != NULL);
 
-    size_t loop_node = LoopSearch(list_p);
-    if (loop_node < list_p->capacity)
-    {
-        printf("\x1b[1m\x1b[31mLoop found in list! Begins on node (%zu)\x1B[0m\n", loop_node);
-        PrintList(list_p);
-        exit(-1);
-    }
+    // size_t loop_node = LoopSearch(list_p);
+    // if (loop_node < list_p->capacity)
+    // {
+    //     printf("\x1b[1m\x1b[31mLoop found in list! Begins on node (%zu)\x1B[0m\n", loop_node);
+    //     PrintList(list_p);
+    //     exit(-1);
+    // }
 
     size_t node_adr = list_p->head;
     while(node_adr < list_p->capacity && list_p->data[node_adr].data_p != NULL && node_adr != list_p->tail)    // might be loop here
@@ -451,7 +451,7 @@ size_t LoopSearch(const struct List* list_p)
     size_t slow = list_p->head;
     size_t fast = list_p->head;
 
-    while (slow < list_p->capacity && fast < list_p->capacity &&
+    while (slow < list_p->capacity && fast < list_p->capacity && list_p->data[fast].next < list_p->capacity &&
         list_p->data[fast].data_p != NULL && list_p->data[list_p->data[fast].next].data_p != NULL)
     {
         slow = list_p->data[slow].next;
@@ -491,6 +491,7 @@ int AddNode(struct List* list_p, struct CacheCell* data_p)
     if (free_adress != prev_adress)
     {
         list_p->data[free_adress].prev = prev_adress;
+        list_p->data[free_adress].next = LIST_EMPTY_UNDEX;
         list_p->data[prev_adress].next = free_adress;
     }
     list_p->tail = free_adress;
@@ -508,15 +509,21 @@ int DeleteNode(struct List* list_p, size_t node_position)
     size_t next_adress = list_p->data[node_position].next;
     size_t prev_adress = list_p->data[node_position].prev;
 
-    list_p->data[prev_adress].next = next_adress;
-    list_p->data[next_adress].prev = prev_adress;
-
+    if (prev_adress < list_p->capacity)
+    {
+        list_p->data[prev_adress].next = next_adress;
+    }
+    if (next_adress < list_p->capacity)
+    {
+        list_p->data[next_adress].prev = prev_adress;
+    }
     list_p->data[node_position].data_p = NULL;
     if (node_position == list_p->head) { list_p->head = next_adress; }
     if (node_position == list_p->tail) { list_p->tail = prev_adress; }
 
     list_p->data[node_position].next = list_p->next_free;
-    list_p->data[list_p->next_free].prev = node_position;
+    list_p->data[node_position].prev = LIST_EMPTY_UNDEX;
+    // list_p->data[list_p->next_free].prev = node_position;
     list_p->next_free = node_position;
     list_p->size -= 1;
     return 0;
@@ -559,16 +566,27 @@ int PrintTable(const struct Cache* cache_p)
     return 0;
 }
 
-int TEST(struct Cache* cache_p)
+int TEST()
 {
     ANNOUNCE_CALL();
 
-    AddNode(&(cache_p->table[7]), (struct CacheCell*) 3);
-    AddNode(&(cache_p->table[7]), (struct CacheCell*) 235);
-    AddNode(&(cache_p->table[7]), (struct CacheCell*) 34523);
-    AddNode(&(cache_p->table[6]), (struct CacheCell*) 134523);
-    AddNode(&(cache_p->table[7]), (struct CacheCell*) 134);
-    DeleteNode(&(cache_p->table[7]), 2);
+    struct List* bebr = (struct List*) calloc(1, sizeof(struct List));
+
+    ExpandList(bebr, 10);
+
+    AddNode(bebr, (struct CacheCell*) 1001010);
+    AddNode(bebr, (struct CacheCell*) 1011010);
+    AddNode(bebr, (struct CacheCell*) 1011011);
+    PrintList(bebr);
+
+    DeleteNode(bebr, 1);
+    PrintList(bebr);
+
+    AddNode(bebr, (struct CacheCell*) 1011011);
+    PrintList(bebr);
+
+    free(bebr->data);
+    free(bebr);
     return 0;
 }
 // ===================================================================================================

@@ -8,9 +8,10 @@
 #include <assert.h>
 
 
-#define STARTING_HIST_SIZE  1000
+#define STARTING_HIST_SIZE  100000
 #define STARTING_TABLE_SIZE 8
 #define STARTING_LIST_SIZE  4
+#define LIST_EMPTY_UNDEX    3810
 
 #define MEM_CHECK(x)                                                                        \
 do {                                                                                        \
@@ -91,7 +92,7 @@ int PrintList(const struct List* list_p);
 
 int PrintTable(const struct Cache* cache_p);
 
-int TEST(struct Cache* cache_p);
+int TEST();
 
 
 int ExpandHIST(struct HIST* HIST, size_t new_HIST_size);
