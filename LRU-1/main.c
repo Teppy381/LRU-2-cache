@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 struct Cache
 {
@@ -32,6 +33,13 @@ int CacheCreate(struct Cache* cache_p, int cache_size)
     cache_p->data = (int*) calloc(cache_size, sizeof(int));
     cache_p->LAST = (int*) calloc(cache_size, sizeof(int));
 
+    return 0;
+}
+
+int CacheFree(struct Cache* cache_p)
+{
+    free(cache_p->data);
+    free(cache_p->LAST);
     return 0;
 }
 
@@ -86,17 +94,25 @@ int main()
     int cache_size, requests_num, buffer, hits_num = 0;
     struct Cache my_cache = {};
 
-    scanf("%i%i", &cache_size, &requests_num);
+    int scan = 0;
+    scan = scanf("%i%i", &cache_size, &requests_num);
+    assert(scan == 2);
 
     CacheCreate(&my_cache, cache_size);
 
-    for (int i = 0; i < requests_num; i++)
+    int i = 0;
+    for (; i < requests_num; i++)
     {
-        scanf("%i", &buffer);
+        scan = scanf("%i", &buffer);
+        if (scan != 1)
+        {
+            break;
+        }
         hits_num += CacheCall(&my_cache, buffer);
     }
 
-    // printf("requests_num = %i\n", requests_num);
-    // printf("hits_num = %i\n", hits_num);
-    printf("%i\n", hits_num);
+    CacheFree(&my_cache);
+
+    printf("%i hits out of %i (%.1f%%)\n", hits_num, i, 100 * (double) hits_num/ (double) i);
+
 }

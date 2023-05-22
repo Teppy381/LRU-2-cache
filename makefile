@@ -1,4 +1,4 @@
-CXX_FLAGS = -Wall -Wextra -fsanitize=address -g -ggdb3
+CXX_FLAGS = -Wall -Wextra -fsanitize=address -g -ggdb3 -O3
 
 all: LRU-1 LRU-K
 

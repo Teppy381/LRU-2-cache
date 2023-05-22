@@ -324,14 +324,20 @@ int StandartCacheTrial()
     ANNOUNCE_CALL();
 
     size_t cache_size, requests_num, hit_counter = 0;
-    int buffer;
-    scanf("%li%li", &cache_size, &requests_num);
+    int buffer, scan;
+
+    scan = scanf("%li%li", &cache_size, &requests_num);
+    assert(scan == 2);
 
     struct Cache* Bobs_cache = CacheConstruct(cache_size, 2);
 
     for (unsigned long time = 1; time < requests_num + 1; time++)
     {
-        scanf("%i", &buffer);
+        scan = scanf("%i", &buffer);
+        if (scan != 1)
+        {
+            break;
+        }
         hit_counter += CacheCall(Bobs_cache, buffer, time);
     }
 
@@ -358,20 +364,27 @@ int FileCacheTrial(const char* file_name)
     }
 
     size_t cache_size, requests_num, hit_counter = 0;
-    int buffer;
-    fscanf(file, "%li%li", &cache_size, &requests_num);
+    int buffer, scan;
+    scan = fscanf(file, "%li%li", &cache_size, &requests_num);
+    assert(scan == 2);
+
     struct Cache* Bobs_cache = CacheConstruct(cache_size, 2);
 
     // printf("%zu %zu\n", cache_size, requests_num);
-    for (unsigned long time = 1; time < requests_num + 1; time++)
+    unsigned long time = 1;
+    for (; time < requests_num + 1; time++)
     {
         // printf("time: %lu\n", time);
-        fscanf(file, "%i", &buffer);
+        scan = fscanf(file, "%i", &buffer);
+        if (scan != 1)
+        {
+            break;
+        }
         hit_counter += CacheCall(Bobs_cache, buffer, time);
     }
 
     CacheDestruct(Bobs_cache);
-    printf("%li\n", hit_counter);
+    printf("%li hits out of %lu (%.1f%%)\n", hit_counter, time - 1, 100 * (double) hit_counter/ (double) ( time - 1));
     return 0;
 }
 // ===================================================================================================
